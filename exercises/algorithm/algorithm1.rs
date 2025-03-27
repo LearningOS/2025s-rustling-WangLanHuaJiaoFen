@@ -2,11 +2,10 @@
 	single linked list merge
 	This problem requires you to merge two ordered singly linked lists into one ordered singly linked list
 */
-// I AM NOT DONE
-
 use std::fmt::{self, Display, Formatter};
 use std::ptr::NonNull;
 use std::vec::*;
+use std::cmp::PartialOrd;
 
 #[derive(Debug)]
 struct Node<T> {
@@ -14,7 +13,7 @@ struct Node<T> {
     next: Option<NonNull<Node<T>>>,
 }
 
-impl<T> Node<T> {
+impl<T: PartialOrd> Node<T> {
     fn new(t: T) -> Node<T> {
         Node {
             val: t,
@@ -29,13 +28,13 @@ struct LinkedList<T> {
     end: Option<NonNull<Node<T>>>,
 }
 
-impl<T> Default for LinkedList<T> {
+impl<T: PartialOrd> Default for LinkedList<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> LinkedList<T> {
+impl<T: PartialOrd> LinkedList<T> {
     pub fn new() -> Self {
         Self {
             length: 0,
@@ -69,14 +68,53 @@ impl<T> LinkedList<T> {
             },
         }
     }
-	pub fn merge(list_a:LinkedList<T>,list_b:LinkedList<T>) -> Self
+	pub fn merge(mut list_a:LinkedList<T>, mut list_b:LinkedList<T>) -> Self
 	{
-		//TODO
-		Self {
-            length: 0,
-            start: None,
-            end: None,
+        let mut merged = LinkedList::new();
+        let mut a_current = list_a.start.take();
+        let mut b_current = list_b.start.take();
+        let mut merged_end: Option<NonNull<Node<T>>> = None;
+
+        while let (Some(a_ptr), Some(b_ptr)) = (a_current, b_current) {
+            let a_val = unsafe { &(*a_ptr.as_ptr()).val };
+            let b_val = unsafe { &(*b_ptr.as_ptr()).val };
+            let chosen_ptr = if a_val <= b_val {
+                a_current = unsafe { (*a_ptr.as_ptr()).next };
+                a_ptr
+            } else {
+                b_current = unsafe { (*b_ptr.as_ptr()).next };
+                b_ptr
+            };
+
+            if let Some(end) = merged_end {
+                unsafe { (*end.as_ptr()).next = Some(chosen_ptr) };
+            } else {
+                merged.start = Some(chosen_ptr);
+            }
+            merged_end = Some(chosen_ptr);
         }
+
+        let remaining = a_current.or(b_current);
+        if let Some(remaining_ptr) = remaining {
+            if merged.start.is_none() {
+                merged.start = Some(remaining_ptr);
+            } else {
+                unsafe { (*merged_end.unwrap().as_ptr()).next = Some(remaining_ptr) };
+            }
+            let mut current = remaining_ptr;
+            loop {
+                let next = unsafe { (*current.as_ptr()).next };
+                if next.is_none() {
+                    merged.end = Some(current);
+                    break;
+                }
+                current = next.unwrap();
+            }
+        } else {
+            merged.end = merged_end;
+        }
+        merged.length = list_a.length + list_b.length;
+		merged
 	}
 }
 
